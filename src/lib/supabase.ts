@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL) as string
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) as string
+// Supabase anon key is safe to expose in frontend code
+// It is a public key designed for browser use, protected by Row Level Security
+const supabaseUrl = 'https://lwdapqzcrezgfkhgftac.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3ZGFwcXpjcmV6Z2ZraGdmdGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5MTg0MzYsImV4cCI6MjA2NzQ5NDQzNn0.7X8mYgIVUTvaQXS5UE2gdlogolPQQmcOqzgaVemCI7k'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
