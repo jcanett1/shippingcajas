@@ -15,4 +15,6 @@ export type Shipment = {
   weight: number | null
   comments: string | null
   created_at: string
+  created_by: number | null
+  created_by_name: string | null
 }
