@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Package, Eye, EyeOff, Loader2, Lock, User } from 'lucide-react'
+import { Package, Eye, EyeOff, Loader2, Lock, User, Mail } from 'lucide-react'
 
 export default function Login({ onLogin }: { onLogin: () => void }) {
   const { login } = useAuth()
-  const [username, setUsername] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
@@ -12,10 +12,10 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username || !password) { setError('Completa todos los campos'); return }
+    if (!identifier || !password) { setError('Completa todos los campos'); return }
     setLoading(true)
     setError('')
-    const result = await login(username, password)
+    const result = await login(identifier, password)
     if (result.error) {
       setError(result.error)
       setLoading(false)
@@ -64,16 +64,19 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Username */}
+          {/* Identifier: username or email */}
           <div>
-            <label style={labelStyle}>USUARIO</label>
+            <label style={labelStyle}>USUARIO O CORREO</label>
             <div style={{ position: 'relative' }}>
-              <User size={15} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              {identifier.includes('@')
+                ? <Mail size={15} color="#6366f1" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                : <User size={15} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              }
               <input
                 type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Nombre de usuario"
+                value={identifier}
+                onChange={e => setIdentifier(e.target.value)}
+                placeholder="Nombre de usuario o correo electrónico"
                 autoComplete="username"
                 style={{ ...inputStyle, paddingLeft: 36 }}
                 onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)' }}

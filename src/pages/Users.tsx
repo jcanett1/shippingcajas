@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth, type AppUser, type UserRole } from '../contexts/AuthContext'
 import { toast } from 'sonner'
-import { UserPlus, Edit2, Trash2, Eye, EyeOff, X, Check, Shield, Truck, Users } from 'lucide-react'
+import { UserPlus, Edit2, Trash2, Eye, EyeOff, X, Check, Shield, Truck, Users, Mail } from 'lucide-react'
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
@@ -27,9 +27,10 @@ interface UserFormData {
   password_text: string
   full_name: string
   role: UserRole
+  email: string
 }
 
-const emptyForm: UserFormData = { username: '', password_text: '', full_name: '', role: 'shipping' }
+const emptyForm: UserFormData = { username: '', password_text: '', full_name: '', role: 'shipping', email: '' }
 
 export default function UsersPage() {
   const { user: currentUser, canSeePasswords, canDeleteUsers, canEditAnyUser, canAddAnyUser } = useAuth()
@@ -64,7 +65,7 @@ export default function UsersPage() {
 
   const openEdit = (u: AppUser) => {
     setEditingUser(u)
-    setForm({ username: u.username, password_text: u.password_text, full_name: u.full_name, role: u.role })
+    setForm({ username: u.username, password_text: u.password_text, full_name: u.full_name, role: u.role, email: u.email || '' })
     setShowForm(true)
   }
 
@@ -81,6 +82,7 @@ export default function UsersPage() {
         password_text: form.password_text,
         full_name: form.full_name.trim(),
         role: form.role,
+        email: form.email.trim().toLowerCase() || null,
         updated_at: new Date().toISOString(),
       }).eq('id', editingUser.id)
       if (error) toast.error('Error al actualizar: ' + error.message)
@@ -91,6 +93,7 @@ export default function UsersPage() {
         password_text: form.password_text,
         full_name: form.full_name.trim(),
         role: form.role,
+        email: form.email.trim().toLowerCase() || null,
       }])
       if (error) toast.error('Error al crear: ' + error.message)
       else { toast.success('Usuario creado exitosamente'); setShowForm(false); fetchUsers() }
@@ -167,6 +170,11 @@ export default function UsersPage() {
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{u.full_name}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>@{u.username}</div>
+                    {u.email && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                        <Mail size={10} />{u.email}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <span style={{
@@ -277,6 +285,19 @@ export default function UsersPage() {
                   }}>
                     {showFormPass ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
+                </div>
+              </FormField>
+
+              <FormField label="CORREO ELECTRÓNICO (OPCIONAL)">
+                <div style={{ position: 'relative' }}>
+                  <Mail size={14} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="correo@ejemplo.com"
+                    style={{ ...modalInputStyle, paddingLeft: 36 }}
+                  />
                 </div>
               </FormField>
 

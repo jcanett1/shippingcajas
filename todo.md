@@ -16,3 +16,11 @@
   - [ ] Supervisor: ver todos, editar todos, eliminar todos
   - [ ] Shipping: ver todos, editar sus propios registros, NO eliminar
 - [ ] Asociar campo `created_by` en tabla shipments al usuario que lo creó
+
+## Login con Email y Nombre de Usuario
+
+- [ ] Agregar columna `email` a la tabla `app_users` en Supabase
+- [ ] Actualizar AuthContext: login acepta username O email
+- [ ] Actualizar página Login: placeholder indica que acepta usuario o correo
+- [ ] Actualizar formulario de usuarios: agregar campo EMAIL
+- [ ] Mostrar email en las tarjetas de usuario

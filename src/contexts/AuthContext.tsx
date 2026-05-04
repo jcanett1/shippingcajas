@@ -9,6 +9,7 @@ export interface AppUser {
   password_text: string
   full_name: string
   role: UserRole
+  email: string | null
   created_at: string
   updated_at: string
 }
@@ -50,16 +51,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false)
   }, [])
 
-  const login = async (username: string, password: string): Promise<{ error?: string }> => {
-    const { data, error } = await supabase
+  const login = async (identifier: string, password: string): Promise<{ error?: string }> => {
+    const trimmed = identifier.trim().toLowerCase()
+    const isEmail = trimmed.includes('@')
+
+    // Try login by username or email
+    const query = supabase
       .from('app_users')
       .select('*')
-      .eq('username', username.trim().toLowerCase())
       .eq('password_text', password)
-      .single()
+
+    const { data, error } = await (isEmail
+      ? query.eq('email', trimmed).single()
+      : query.eq('username', trimmed).single())
 
     if (error || !data) {
-      return { error: 'Usuario o contraseña incorrectos' }
+      // If username login failed, also try email as fallback
+      if (!isEmail) {
+        const { data: data2, error: error2 } = await supabase
+          .from('app_users')
+          .select('*')
+          .eq('email', trimmed)
+          .eq('password_text', password)
+          .single()
+        if (!error2 && data2) {
+          setUser(data2)
+          localStorage.setItem(SESSION_KEY, JSON.stringify(data2))
+          return {}
+        }
+      }
+      return { error: 'Usuario, correo o contraseña incorrectos' }
     }
 
     setUser(data)
