@@ -39,11 +39,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Restore session from localStorage
+    // Restore session from localStorage and refresh from DB
     const saved = localStorage.getItem(SESSION_KEY)
     if (saved) {
       try {
-        setUser(JSON.parse(saved))
+        const cached = JSON.parse(saved) as AppUser
+        setUser(cached)
+        // Refresh user data from DB in background to get latest full_name, role, etc.
+        supabase
+          .from('app_users')
+          .select('*')
+          .eq('id', cached.id)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              setUser(data)
+              localStorage.setItem(SESSION_KEY, JSON.stringify(data))
+            }
+          })
       } catch {
         localStorage.removeItem(SESSION_KEY)
       }
