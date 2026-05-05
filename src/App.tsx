@@ -406,7 +406,7 @@ function MainApp() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                        {['FECHA', 'DESTINO', 'SHIPMENT', 'CAJA', 'PESO', 'COMENTARIOS', 'USUARIO', ''].map(h => (
+                        {['FECHA', 'USUARIO', 'DESTINO', 'SHIPMENT', 'CAJA', 'PESO', 'COMENTARIOS', ''].map(h => (
                           <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -415,6 +415,9 @@ function MainApp() {
                       {shipments.map((s, idx) => (
                         <tr key={s.id} style={{ borderBottom: '1px solid rgba(37,37,53,0.6)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                           <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace" }}>{formatDate(s.created_at)}</td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{s.created_by_name || '—'}</span>
+                          </td>
                           <td style={{ padding: '10px 12px' }}>
                             {s.destination
                               ? <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: 'rgba(245,158,11,0.12)', color: '#f59e0b', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>{s.destination}</span>
@@ -431,9 +434,6 @@ function MainApp() {
                             {s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(3)}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ padding: '10px 12px', maxWidth: 140 }}><span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.comments || '—'}</span></td>
-                          <td style={{ padding: '10px 12px' }}>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{s.created_by_name || '—'}</span>
-                          </td>
                           <td style={{ padding: '10px 12px' }}>
                             <div style={{ display: 'flex', gap: 4 }}>
                               {canEditShipment(s) && (
