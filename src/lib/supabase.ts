@@ -14,7 +14,18 @@ export type Shipment = {
   custom_box: string | null
   weight: number | null
   comments: string | null
+  destination: string | null
   created_at: string
   created_by: number | null
   created_by_name: string | null
 }
+
+export const DESTINATIONS = [
+  'CANADA',
+  'INTERNATIONAL',
+  'PGA',
+  'FEDEX ACCOUNT',
+  'GOLF TOWN CANADA',
+] as const
+
+export type Destination = typeof DESTINATIONS[number]

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, type Shipment } from './lib/supabase'
+import { supabase, type Shipment, DESTINATIONS } from './lib/supabase'
 import { useScale } from './hooks/useScale'
 import { Toaster, toast } from 'sonner'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -8,7 +8,7 @@ import UsersPage from './pages/Users'
 import {
   Package, Scale, Usb, RefreshCw, Send, Trash2, Edit2,
   ChevronDown, Wifi, WifiOff, Loader2, AlertCircle, ClipboardList,
-  Users, LogOut, Shield, Truck, X, Check
+  Users, LogOut, Shield, Truck, X, Check, MapPin
 } from 'lucide-react'
 
 const BOX_TYPES = [
@@ -71,6 +71,7 @@ function EditShipmentModal({ shipment, onClose, onSaved }: { shipment: Shipment;
     customBox: shipment.custom_box || '',
     weight: shipment.weight != null ? String(shipment.weight) : '',
     comments: shipment.comments || '',
+    destination: shipment.destination || '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -85,6 +86,7 @@ function EditShipmentModal({ shipment, onClose, onSaved }: { shipment: Shipment;
       custom_box: form.boxType === 'CUSTOM BOX' ? form.customBox : null,
       weight: form.weight ? parseFloat(form.weight) : null,
       comments: form.comments.trim() || null,
+      destination: form.destination || null,
     }).eq('id', shipment.id)
     if (error) toast.error('Error al actualizar: ' + error.message)
     else { toast.success('Registro actualizado'); onSaved(); onClose() }
@@ -119,6 +121,16 @@ function EditShipmentModal({ shipment, onClose, onSaved }: { shipment: Shipment;
               </Field>
             </div>
           )}
+          <Field label="DESTINO">
+            <div style={{ position: 'relative' }}>
+              <MapPin size={14} color={form.destination ? '#f59e0b' : 'var(--text-muted)'} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <select value={form.destination} onChange={e => setForm(f => ({ ...f, destination: e.target.value }))}
+                style={{ ...inputStyle, paddingLeft: 36, cursor: 'pointer', borderColor: form.destination ? 'rgba(245,158,11,0.4)' : 'var(--border)' }}>
+                <option value="">Seleccionar destino...</option>
+                {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </Field>
           <Field label="PESO">
             <input value={form.weight} onChange={e => setForm(f => ({ ...f, weight: e.target.value }))} placeholder="0.000" style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace" }} />
           </Field>
@@ -147,6 +159,7 @@ function MainApp() {
   const [shipment, setShipment] = useState('')
   const [boxType, setBoxType] = useState('')
   const [customBox, setCustomBox] = useState('')
+  const [destination, setDestination] = useState('')
   const [manualWeight, setManualWeight] = useState('')
   const [comments, setComments] = useState('')
   const [saving, setSaving] = useState(false)
@@ -174,6 +187,7 @@ function MainApp() {
     if (!shipment.trim()) { toast.error('El campo SHIPMENT es requerido'); return }
     if (!boxType) { toast.error('Selecciona un tipo de CAJA'); return }
     if (boxType === 'CUSTOM BOX' && !customBox) { toast.error('Selecciona el tipo de CUSTOM BOX'); return }
+    if (!destination) { toast.error('Selecciona el DESTINO del envío'); return }
     setSaving(true)
     const { error } = await supabase.from('shipments').insert([{
       shipment: shipment.trim(),
@@ -181,13 +195,14 @@ function MainApp() {
       custom_box: boxType === 'CUSTOM BOX' ? customBox : null,
       weight: effectiveWeight ? parseFloat(effectiveWeight) : null,
       comments: comments.trim() || null,
+      destination: destination,
       created_by: user?.id,
       created_by_name: user?.full_name,
     }])
     if (error) toast.error('Error al guardar', { description: error.message })
     else {
       toast.success('Envío registrado exitosamente')
-      setShipment(''); setBoxType(''); setCustomBox(''); setManualWeight(''); setComments('')
+      setShipment(''); setBoxType(''); setCustomBox(''); setDestination(''); setManualWeight(''); setComments('')
       fetchShipments()
     }
     setSaving(false)
@@ -338,6 +353,17 @@ function MainApp() {
                   {scale.status === 'disconnected' && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Presiona el ícono USB para conectar la báscula o ingresa el peso manualmente.</p>}
                 </Field>
 
+                <Field label="DESTINO">
+                  <div style={{ position: 'relative' }}>
+                    <MapPin size={15} color={destination ? '#f59e0b' : 'var(--text-muted)'} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
+                    <select value={destination} onChange={e => setDestination(e.target.value)}
+                      style={{ ...inputStyle, paddingLeft: 36, cursor: 'pointer', borderColor: destination ? 'rgba(245,158,11,0.4)' : 'var(--border)', color: destination ? 'var(--text)' : 'var(--text-muted)' }}>
+                      <option value="">Seleccionar destino...</option>
+                      {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                </Field>
+
                 <Field label="COMENTARIOS">
                   <textarea value={comments} onChange={e => setComments(e.target.value)} placeholder="Notas adicionales del envío..." rows={3}
                     style={{ ...inputStyle, height: 'auto', resize: 'none', lineHeight: 1.6, padding: '10px 12px' }}
@@ -380,7 +406,7 @@ function MainApp() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                        {['FECHA', 'SHIPMENT', 'CAJA', 'PESO', 'COMENTARIOS', 'USUARIO', ''].map(h => (
+                        {['FECHA', 'SHIPMENT', 'CAJA', 'DESTINO', 'PESO', 'COMENTARIOS', 'USUARIO', ''].map(h => (
                           <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -395,6 +421,11 @@ function MainApp() {
                               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{s.custom_box ? 'CUSTOM BOX' : s.box_type}</span>
                               {s.custom_box && <span style={{ fontSize: 10, color: '#6366f1', fontFamily: "'JetBrains Mono', monospace" }}>{s.custom_box}</span>}
                             </div>
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {s.destination
+                              ? <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: 'rgba(245,158,11,0.12)', color: '#f59e0b', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>{s.destination}</span>
+                              : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ padding: '10px 12px' }}>
                             {s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(3)}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}

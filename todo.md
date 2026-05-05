@@ -19,8 +19,16 @@
 
 ## Login con Email y Nombre de Usuario
 
-- [ ] Agregar columna `email` a la tabla `app_users` en Supabase
-- [ ] Actualizar AuthContext: login acepta username O email
-- [ ] Actualizar página Login: placeholder indica que acepta usuario o correo
-- [ ] Actualizar formulario de usuarios: agregar campo EMAIL
-- [ ] Mostrar email en las tarjetas de usuario
+- [x] Agregar columna `email` a la tabla `app_users` en Supabase
+- [x] Actualizar AuthContext: login acepta username O email
+- [x] Actualizar página Login: placeholder indica que acepta usuario o correo
+- [x] Actualizar formulario de usuarios: agregar campo EMAIL
+- [x] Mostrar email en las tarjetas de usuario
+
+## Campo DESTINATION en Envíos
+
+- [ ] Agregar columna `destination` al tipo Shipment en supabase.ts
+- [ ] Agregar selector DESTINATION en formulario de nuevo envío (obligatorio)
+- [ ] Validar que DESTINATION esté seleccionado antes de guardar
+- [ ] Agregar columna DESTINATION en tabla del historial de envíos
+- [ ] Actualizar modal de edición de envío con campo DESTINATION
