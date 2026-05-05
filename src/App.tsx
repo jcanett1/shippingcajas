@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, type Shipment, DESTINATIONS } from './lib/supabase'
+import { supabase, type Shipment, type ShipmentBox, DESTINATIONS } from './lib/supabase'
 import { useScale } from './hooks/useScale'
 import { Toaster, toast } from 'sonner'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -9,7 +9,7 @@ import {
   Package, Scale, Usb, RefreshCw, Send, Trash2, Edit2,
   ChevronDown, Wifi, WifiOff, Loader2, AlertCircle, ClipboardList,
   Users, LogOut, Shield, Truck, X, Check, MapPin,
-  Sun, Moon, User, ChevronUp
+  Sun, Moon, User, ChevronUp, Plus, Minus
 } from 'lucide-react'
 
 const BOX_TYPES = [
@@ -230,12 +230,16 @@ function MainApp() {
   const { user, logout, canDeleteShipments, canEditAllShipments } = useAuth()
   const [activeTab, setActiveTab] = useState<'shipments' | 'users'>('shipments')
   const [shipment, setShipment] = useState('')
-  const [boxType, setBoxType] = useState('')
-  const [customBox, setCustomBox] = useState('')
   const [destination, setDestination] = useState('')
-  const [manualWeight, setManualWeight] = useState('')
   const [comments, setComments] = useState('')
   const [saving, setSaving] = useState(false)
+  // Multi-box: cada caja tiene boxType, customBox, weight manual
+  type BoxEntry = { boxType: string; customBox: string; manualWeight: string }
+  const [boxes, setBoxes] = useState<BoxEntry[]>([{ boxType: '', customBox: '', manualWeight: '' }])
+  const addBox = () => setBoxes(b => [...b, { boxType: '', customBox: '', manualWeight: '' }])
+  const removeBox = (i: number) => setBoxes(b => b.filter((_, idx) => idx !== i))
+  const updateBox = (i: number, field: keyof BoxEntry, val: string) =>
+    setBoxes(b => b.map((box, idx) => idx === i ? { ...box, [field]: val, ...(field === 'boxType' ? { customBox: '' } : {}) } : box))
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [loadingList, setLoadingList] = useState(true)
   const [editingShipment, setEditingShipment] = useState<Shipment | null>(null)
@@ -252,16 +256,20 @@ function MainApp() {
   }
 
   const scale = useScale()
-  const effectiveWeight = scale.status === 'connected' ? scale.weight : manualWeight
+  // El peso de la báscula se asigna a la caja activa (última caja)
+  const scaleWeight = scale.status === 'connected' ? scale.weight : ''
 
   const isShipping = user?.role === 'shipping'
   const canManageUsers = user?.role === 'admin' || user?.role === 'supervisor'
 
   const fetchShipments = useCallback(async () => {
     setLoadingList(true)
-    const { data, error } = await supabase.from('shipments').select('*').order('created_at', { ascending: false })
+    const { data: shipData, error } = await supabase
+      .from('shipments')
+      .select('*, boxes:shipment_boxes(*)')
+      .order('created_at', { ascending: false })
     if (error) toast.error('Error al cargar historial', { description: error.message })
-    else setShipments(data || [])
+    else setShipments((shipData || []) as Shipment[])
     setLoadingList(false)
   }, [])
 
@@ -269,24 +277,42 @@ function MainApp() {
 
   const handleSubmit = async () => {
     if (!shipment.trim()) { toast.error('El campo SHIPMENT es requerido'); return }
-    if (!boxType) { toast.error('Selecciona un tipo de CAJA'); return }
-    if (boxType === 'CUSTOM BOX' && !customBox) { toast.error('Selecciona el tipo de CUSTOM BOX'); return }
     if (!destination) { toast.error('Selecciona el DESTINO del envío'); return }
+    if (boxes.length === 0) { toast.error('Agrega al menos una caja'); return }
+    for (let i = 0; i < boxes.length; i++) {
+      if (!boxes[i].boxType) { toast.error(`Selecciona el tipo de caja ${i + 1}`); return }
+      if (boxes[i].boxType === 'CUSTOM BOX' && !boxes[i].customBox) { toast.error(`Selecciona el tipo de CUSTOM BOX para la caja ${i + 1}`); return }
+    }
     setSaving(true)
-    const { error } = await supabase.from('shipments').insert([{
+    // Insertar el shipment con los datos de la primera caja (compatibilidad legacy)
+    const firstBox = boxes[0]
+    const firstBoxType = firstBox.boxType === 'CUSTOM BOX' ? `CUSTOM BOX - ${firstBox.customBox}` : firstBox.boxType
+    const firstWeight = firstBox.manualWeight ? parseFloat(firstBox.manualWeight) : null
+    const { data: newShipment, error: shipErr } = await supabase.from('shipments').insert([{
       shipment: shipment.trim(),
-      box_type: boxType === 'CUSTOM BOX' ? `CUSTOM BOX - ${customBox}` : boxType,
-      custom_box: boxType === 'CUSTOM BOX' ? customBox : null,
-      weight: effectiveWeight ? parseFloat(effectiveWeight) : null,
+      box_type: firstBoxType,
+      custom_box: firstBox.boxType === 'CUSTOM BOX' ? firstBox.customBox : null,
+      weight: firstWeight,
       comments: comments.trim() || null,
       destination: destination,
       created_by: user?.id,
       created_by_name: user?.full_name,
-    }])
-    if (error) toast.error('Error al guardar', { description: error.message })
+    }]).select().single()
+    if (shipErr || !newShipment) { toast.error('Error al guardar', { description: shipErr?.message }); setSaving(false); return }
+    // Insertar todas las cajas en shipment_boxes
+    const boxRows = boxes.map((b, idx) => ({
+      shipment_id: newShipment.id,
+      box_type: b.boxType === 'CUSTOM BOX' ? `CUSTOM BOX - ${b.customBox}` : b.boxType,
+      custom_box: b.boxType === 'CUSTOM BOX' ? b.customBox : null,
+      weight: b.manualWeight ? parseFloat(b.manualWeight) : null,
+      sort_order: idx,
+    }))
+    const { error: boxErr } = await supabase.from('shipment_boxes').insert(boxRows)
+    if (boxErr) toast.error('Error al guardar cajas adicionales', { description: boxErr.message })
     else {
-      toast.success('Envío registrado exitosamente')
-      setShipment(''); setBoxType(''); setCustomBox(''); setDestination(''); setManualWeight(''); setComments('')
+      toast.success(`Envío registrado con ${boxes.length} caja${boxes.length > 1 ? 's' : ''}`)
+      setShipment(''); setDestination(''); setComments('')
+      setBoxes([{ boxType: '', customBox: '', manualWeight: '' }])
       fetchShipments()
     }
     setSaving(false)
@@ -452,74 +478,100 @@ function MainApp() {
                     onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none' }} />
                 </Field>
 
-                <Field label="BOXES">
-                  <select value={boxType} onChange={e => { setBoxType(e.target.value); setCustomBox('') }} style={{ ...inputStyle, cursor: 'pointer' }}>
-                    <option value="">Seleccionar tipo de caja...</option>
-                    {BOX_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </Field>
-
-                {boxType === 'CUSTOM BOX' && (
-                  <div style={{ paddingLeft: 16, borderLeft: '2px solid #6366f1', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <label style={{ ...labelStyle, color: '#6366f1' }}>
-                      <ChevronDown size={12} style={{ display: 'inline', marginRight: 4 }} />
-                      CUSTOM BOX - TIPO
-                    </label>
-                    <select value={customBox} onChange={e => setCustomBox(e.target.value)} style={{ ...inputStyle, borderColor: 'rgba(99,102,241,0.3)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, cursor: 'pointer' }}>
-                      <option value="">Seleccionar medida...</option>
-                      {CUSTOM_BOX_TYPES.map(cb => <option key={cb} value={cb}>{cb}</option>)}
-                    </select>
+                {/* ── CAJAS (multi-box dinámico) ── */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <label style={labelStyle}>CAJAS ({boxes.length})</label>
+                    <button onClick={addBox} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 7, border: '1px solid rgba(99,102,241,0.4)', background: 'rgba(99,102,241,0.08)', color: '#6366f1', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif" }}>
+                      <Plus size={12} /> AGREGAR CAJA
+                    </button>
                   </div>
-                )}
 
-                <Field label="PESO">
-                  {/* Advertencia si el navegador no soporta WebHID */}
+                  {/* Advertencia báscula */}
                   {!scale.isSupported && (
-                    <div style={{ marginBottom: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', fontSize: 12, color: '#fbbf24' }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ WebHID API no disponible</div>
-                      <div style={{ color: 'rgba(251,191,36,0.8)', lineHeight: 1.5 }}>
-                        Usa <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong> para conectar la báscula USB.
-                      </div>
+                    <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', fontSize: 11, color: '#fbbf24' }}>
+                      Usa <strong>Chrome</strong> o <strong>Edge</strong> para conectar la báscula USB.
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <Scale size={15} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                      <input
-                        value={scale.status === 'connected' ? scale.weight : manualWeight}
-                        onChange={e => { if (scale.status !== 'connected') setManualWeight(e.target.value) }}
-                        readOnly={scale.status === 'connected'}
-                        placeholder={scale.status === 'connected' ? 'Leyendo báscula...' : '0.00'}
-                        style={{ ...inputStyle, paddingLeft: 36, paddingRight: scale.status === 'connected' ? 44 : 12, fontFamily: "'JetBrains Mono', monospace", ...(scale.status === 'connected' ? { borderColor: 'rgba(52,211,153,0.4)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' } : {}) }}
-                      />
-                    </div>
-                    <button onClick={scale.status === 'connected' ? scale.readWeight : scale.connect} disabled={scale.status === 'connecting' || !scale.isSupported} title={scale.status === 'connected' ? 'Leer peso' : 'Conectar báscula USB'}
-                      style={{ ...iconBtnStyle, borderColor: scale.status === 'connected' ? 'rgba(52,211,153,0.4)' : 'var(--border)', color: scale.status === 'connected' ? '#34d399' : scale.isSupported ? 'var(--text-muted)' : 'rgba(107,107,138,0.4)', cursor: scale.isSupported ? 'pointer' : 'not-allowed' }}>
-                      {scale.status === 'connecting' ? <Loader2 size={16} className="spin" /> : scale.status === 'connected' ? <RefreshCw size={16} /> : <Usb size={16} />}
+
+                  {/* Botón báscula global */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <button onClick={scale.status === 'connected' ? scale.disconnect : scale.connect}
+                      disabled={scale.status === 'connecting' || !scale.isSupported}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: `1px solid ${scale.status === 'connected' ? 'rgba(52,211,153,0.4)' : 'var(--border)'}`, background: scale.status === 'connected' ? 'rgba(52,211,153,0.08)' : 'transparent', color: scale.status === 'connected' ? '#34d399' : 'var(--text-muted)', fontSize: 11, fontWeight: 600, cursor: scale.isSupported ? 'pointer' : 'not-allowed', fontFamily: "'Space Grotesk', sans-serif" }}>
+                      {scale.status === 'connecting' ? <Loader2 size={13} className="spin" /> : scale.status === 'connected' ? <WifiOff size={13} /> : <Usb size={13} />}
+                      {scale.status === 'connected' ? 'Desconectar báscula' : 'Conectar báscula USB'}
                     </button>
                     {scale.status === 'connected' && (
-                      <button onClick={scale.disconnect} title="Desconectar báscula" style={{ ...iconBtnStyle, borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>
-                        <WifiOff size={16} />
-                      </button>
+                      <span style={{ fontSize: 11, color: '#34d399' }}>Báscula activa — {scaleWeight ? `${scaleWeight} lb` : 'esperando...'}</span>
                     )}
                   </div>
-                  {/* Mensajes de error específicos */}
-                  {scale.errorMsg === 'BRAVE_BLOQUEADO' && (
-                    <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 6, background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', fontSize: 11, color: '#f87171', lineHeight: 1.5 }}>
-                      <strong>Brave bloqueó el acceso al puerto serial.</strong><br/>
-                      Desactiva Brave Shields para este sitio: haz clic en el ícono del <strong>León</strong> en la barra de direcciones → desactiva los Shields.
-                    </div>
-                  )}
+
+                  {/* Lista de cajas */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {boxes.map((box, i) => (
+                      <div key={i} style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px 14px 12px', background: 'rgba(255,255,255,0.02)', position: 'relative' }}>
+                        {/* Header de la caja */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#6366f1', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Caja {i + 1}</span>
+                          {boxes.length > 1 && (
+                            <button onClick={() => removeBox(i)} title="Quitar caja" style={{ padding: 4, borderRadius: 5, border: 'none', background: 'rgba(248,113,113,0.1)', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                              <Minus size={11} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Tipo de caja */}
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>TIPO DE CAJA</label>
+                          <select value={box.boxType} onChange={e => updateBox(i, 'boxType', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                            <option value="">Seleccionar tipo de caja...</option>
+                            {BOX_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        </div>
+
+                        {/* Custom box */}
+                        {box.boxType === 'CUSTOM BOX' && (
+                          <div style={{ marginBottom: 8, paddingLeft: 12, borderLeft: '2px solid #6366f1' }}>
+                            <label style={{ ...labelStyle, color: '#6366f1', marginBottom: 4 }}>CUSTOM BOX - TIPO</label>
+                            <select value={box.customBox} onChange={e => updateBox(i, 'customBox', e.target.value)} style={{ ...inputStyle, borderColor: 'rgba(99,102,241,0.3)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, cursor: 'pointer' }}>
+                              <option value="">Seleccionar medida...</option>
+                              {CUSTOM_BOX_TYPES.map(cb => <option key={cb} value={cb}>{cb}</option>)}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Peso */}
+                        <div>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>PESO (lb)</label>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <div style={{ position: 'relative', flex: 1 }}>
+                              <Scale size={13} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                              <input
+                                value={box.manualWeight}
+                                onChange={e => updateBox(i, 'manualWeight', e.target.value)}
+                                placeholder="0.00"
+                                style={{ ...inputStyle, paddingLeft: 30, fontFamily: "'JetBrains Mono', monospace" }}
+                              />
+                            </div>
+                            {scale.status === 'connected' && scaleWeight && (
+                              <button onClick={() => updateBox(i, 'manualWeight', scaleWeight)}
+                                title="Capturar peso de la báscula"
+                                style={{ ...iconBtnStyle, borderColor: 'rgba(52,211,153,0.4)', color: '#34d399', fontSize: 10, fontWeight: 700, width: 'auto', padding: '0 10px', gap: 4, fontFamily: "'Space Grotesk', sans-serif" }}>
+                                <Check size={12} /> {scaleWeight} lb
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Errores de báscula */}
                   {scale.errorMsg && scale.errorMsg !== 'BRAVE_BLOQUEADO' && scale.errorMsg !== 'NAVEGADOR_NO_COMPATIBLE' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f87171', marginTop: 4 }}><AlertCircle size={11} /> {scale.errorMsg}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f87171', marginTop: 6 }}><AlertCircle size={11} /> {scale.errorMsg}</div>
                   )}
-                  {scale.status === 'connected' && (
-                    <p style={{ fontSize: 11, color: '#34d399', marginTop: 4 }}>Báscula conectada — leyendo en libras (lb)</p>
-                  )}
-                  {scale.status === 'disconnected' && !scale.errorMsg && scale.isSupported && (
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Presiona el ícono USB para conectar la báscula Mettler Toledo.</p>
-                  )}
-                </Field>
+                </div>
 
                 <Field label="COMENTARIOS">
                   <textarea value={comments} onChange={e => setComments(e.target.value)} placeholder="Notas adicionales del envío..." rows={3}
@@ -584,13 +636,41 @@ function MainApp() {
                           </td>
                           <td style={{ padding: '10px 12px' }}><span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{s.shipment}</span></td>
                           <td style={{ padding: '10px 12px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{s.custom_box ? 'CUSTOM BOX' : s.box_type}</span>
-                              {s.custom_box && <span style={{ fontSize: 10, color: '#6366f1', fontFamily: "'JetBrains Mono', monospace" }}>{s.custom_box}</span>}
-                            </div>
+                            {/* Mostrar cajas desde shipment_boxes si existen, sino usar datos legacy */}
+                            {s.boxes && s.boxes.length > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {s.boxes.sort((a: ShipmentBox, b: ShipmentBox) => a.sort_order - b.sort_order).map((box: ShipmentBox, bi: number) => (
+                                  <div key={box.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#6366f1', minWidth: 14 }}>{bi + 1}.</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{box.custom_box ? 'CUSTOM BOX' : box.box_type}</span>
+                                      {box.custom_box && <span style={{ fontSize: 9, color: '#6366f1', fontFamily: "'JetBrains Mono', monospace" }}>{box.custom_box}</span>}
+                                    </div>
+                                    {box.weight != null && (
+                                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#34d399', fontWeight: 600, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{Number(box.weight).toFixed(2)} lb</span>
+                                    )}
+                                  </div>
+                                ))}
+                                {s.boxes.length > 1 && (
+                                  <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{s.boxes.length} cajas • {s.boxes.reduce((sum: number, b: ShipmentBox) => sum + (b.weight || 0), 0).toFixed(2)} lb total</span>
+                                )}
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{s.custom_box ? 'CUSTOM BOX' : s.box_type}</span>
+                                {s.custom_box && <span style={{ fontSize: 10, color: '#6366f1', fontFamily: "'JetBrains Mono', monospace" }}>{s.custom_box}</span>}
+                              </div>
+                            )}
                           </td>
                           <td style={{ padding: '10px 12px' }}>
-                            {s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(2)} lb</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
+                            {/* Peso: si hay cajas nuevas mostrar total, sino legacy */}
+                            {s.boxes && s.boxes.length > 0 ? (
+                              s.boxes.length === 1
+                                ? (s.boxes[0].weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.boxes[0].weight).toFixed(2)} lb</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>)
+                                : <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#34d399', fontWeight: 600 }}>{s.boxes.reduce((sum: number, b: ShipmentBox) => sum + (b.weight || 0), 0).toFixed(2)} lb</span>
+                            ) : (
+                              s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(2)} lb</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                            )}
                           </td>
                           <td style={{ padding: '10px 12px' }}><span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', wordBreak: 'break-word', lineHeight: 1.5 }}>{s.comments || '—'}</span></td>
                           <td style={{ padding: '10px 12px' }}>
