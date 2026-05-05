@@ -102,7 +102,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
           <h1 style={{
             fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
             fontSize: 22, color: '#fff', letterSpacing: '-0.5px', marginBottom: 6,
-          }}>SHIPPING SYSTEM</h1>
+          }}>SHIPPING SYSTEM PXG TEQUILA</h1>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Inicia sesión para continuar</p>
         </div>
 
