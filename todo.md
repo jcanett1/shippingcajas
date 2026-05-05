@@ -27,8 +27,8 @@
 
 ## Campo DESTINATION en Envíos
 
-- [ ] Agregar columna `destination` al tipo Shipment en supabase.ts
-- [ ] Agregar selector DESTINATION en formulario de nuevo envío (obligatorio)
-- [ ] Validar que DESTINATION esté seleccionado antes de guardar
-- [ ] Agregar columna DESTINATION en tabla del historial de envíos
-- [ ] Actualizar modal de edición de envío con campo DESTINATION
+- [x] Agregar columna `destination` al tipo Shipment en supabase.ts
+- [x] Agregar selector DESTINATION en formulario de nuevo envío (obligatorio)
+- [x] Validar que DESTINATION esté seleccionado antes de guardar
+- [x] Agregar columna DESTINATION en tabla del historial de envíos
+- [x] Actualizar modal de edición de envío con campo DESTINATION

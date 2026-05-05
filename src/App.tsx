@@ -301,6 +301,17 @@ function MainApp() {
               </div>
               <div style={{ borderRadius: 14, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+                <Field label="DESTINO">
+                  <div style={{ position: 'relative' }}>
+                    <MapPin size={15} color={destination ? '#f59e0b' : 'var(--text-muted)'} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
+                    <select value={destination} onChange={e => setDestination(e.target.value)}
+                      style={{ ...inputStyle, paddingLeft: 36, cursor: 'pointer', borderColor: destination ? 'rgba(245,158,11,0.4)' : 'var(--border)', color: destination ? 'var(--text)' : 'var(--text-muted)' }}>
+                      <option value="">Seleccionar destino...</option>
+                      {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                </Field>
+
                 <Field label="SHIPMENT">
                   <input value={shipment} onChange={e => setShipment(e.target.value)} placeholder="Ej: SHP-2024-001 o ABC123" style={inputStyle}
                     onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)' }}
@@ -353,17 +364,6 @@ function MainApp() {
                   {scale.status === 'disconnected' && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Presiona el ícono USB para conectar la báscula o ingresa el peso manualmente.</p>}
                 </Field>
 
-                <Field label="DESTINO">
-                  <div style={{ position: 'relative' }}>
-                    <MapPin size={15} color={destination ? '#f59e0b' : 'var(--text-muted)'} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
-                    <select value={destination} onChange={e => setDestination(e.target.value)}
-                      style={{ ...inputStyle, paddingLeft: 36, cursor: 'pointer', borderColor: destination ? 'rgba(245,158,11,0.4)' : 'var(--border)', color: destination ? 'var(--text)' : 'var(--text-muted)' }}>
-                      <option value="">Seleccionar destino...</option>
-                      {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
-                </Field>
-
                 <Field label="COMENTARIOS">
                   <textarea value={comments} onChange={e => setComments(e.target.value)} placeholder="Notas adicionales del envío..." rows={3}
                     style={{ ...inputStyle, height: 'auto', resize: 'none', lineHeight: 1.6, padding: '10px 12px' }}
@@ -406,7 +406,7 @@ function MainApp() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                        {['FECHA', 'SHIPMENT', 'CAJA', 'DESTINO', 'PESO', 'COMENTARIOS', 'USUARIO', ''].map(h => (
+                        {['FECHA', 'DESTINO', 'SHIPMENT', 'CAJA', 'PESO', 'COMENTARIOS', 'USUARIO', ''].map(h => (
                           <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -415,6 +415,11 @@ function MainApp() {
                       {shipments.map((s, idx) => (
                         <tr key={s.id} style={{ borderBottom: '1px solid rgba(37,37,53,0.6)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                           <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace" }}>{formatDate(s.created_at)}</td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {s.destination
+                              ? <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: 'rgba(245,158,11,0.12)', color: '#f59e0b', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>{s.destination}</span>
+                              : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
+                          </td>
                           <td style={{ padding: '10px 12px' }}><span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{s.shipment}</span></td>
                           <td style={{ padding: '10px 12px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -423,16 +428,11 @@ function MainApp() {
                             </div>
                           </td>
                           <td style={{ padding: '10px 12px' }}>
-                            {s.destination
-                              ? <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: 'rgba(245,158,11,0.12)', color: '#f59e0b', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>{s.destination}</span>
-                              : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
-                          </td>
-                          <td style={{ padding: '10px 12px' }}>
                             {s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(3)}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ padding: '10px 12px', maxWidth: 140 }}><span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.comments || '—'}</span></td>
                           <td style={{ padding: '10px 12px' }}>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{s.created_by_name || '—'}</span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{s.created_by_name || '—'}</span>
                           </td>
                           <td style={{ padding: '10px 12px' }}>
                             <div style={{ display: 'flex', gap: 4 }}>
