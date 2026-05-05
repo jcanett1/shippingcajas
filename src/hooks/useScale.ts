@@ -70,49 +70,26 @@ export function useScale(): UseScaleReturn {
       await device.open()
       deviceRef.current = device
 
-      // ─── Parser binario HID para báscula BCA-222 ──────────────────────────
+      // ─── Parser binario HID para báscula BCA-222-60U (Mettler Toledo) ───────────
+      // Protocolo confirmado: bytes[2]=LSB, bytes[3]=MSB, factor=0.01, unidad=lb
+      // Ejemplo: bytes=[4,12,254,5,0] → 254+(5×256)=1534 → 1534×0.01=15.34 lb
       device.oninputreport = (event) => {
-        if (!event || !event.data) {
-          console.warn('Reporte recibido sin datos')
-          return
-        }
+        if (!event || !event.data) return
 
-        const { data } = event // DataView
-        const byteCount = data.byteLength
-
-        // LOG DE DIAGNÓSTICO: muestra todos los bytes para identificar el protocolo
-        const bytes: number[] = []
-        for (let i = 0; i < byteCount; i++) {
-          bytes.push(data.getUint8(i))
-        }
-        console.log(`[BCA-222] reportId=${event.reportId} bytes(${byteCount}):`, bytes.join(', '))
+        const { data } = event
 
         try {
-          // Intentar leer el peso según el tamaño del reporte
-          let rawWeight = 0
+          if (data.byteLength < 4) return
 
-          if (byteCount >= 6) {
-            // Protocolo estándar POS HID: byte4=LSB, byte5=MSB
-            rawWeight = data.getUint8(4) + (data.getUint8(5) * 256)
-          } else if (byteCount >= 4) {
-            // Protocolo compacto: byte2=LSB, byte3=MSB
-            rawWeight = data.getUint8(2) + (data.getUint8(3) * 256)
-          } else if (byteCount >= 2) {
-            // Protocolo mínimo: byte0=LSB, byte1=MSB
-            rawWeight = data.getUint8(0) + (data.getUint8(1) * 256)
-          } else if (byteCount === 1) {
-            rawWeight = data.getUint8(0)
-          }
+          const weightLSB = data.getUint8(2)
+          const weightMSB = data.getUint8(3)
+          const rawWeight = weightLSB + (weightMSB * 256)
 
-          if (rawWeight > 0) {
+          if (rawWeight >= 0) {
             const scaledWeight = (rawWeight * 0.01).toFixed(2)
-            console.log(`[BCA-222] Peso calculado: ${scaledWeight} kg (raw=${rawWeight})`)
             setWeight(scaledWeight)
           }
-
-        } catch (error) {
-          console.error('[BCA-222] Error al procesar bytes:', error, '| bytes:', bytes)
-        }
+        } catch { /* ignore */ }
       }
 
       setStatus('connected')

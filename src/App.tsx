@@ -462,13 +462,12 @@ function MainApp() {
                 )}
 
                 <Field label="PESO">
-                  {/* Advertencia si el navegador no soporta Web Serial */}
+                  {/* Advertencia si el navegador no soporta WebHID */}
                   {!scale.isSupported && (
                     <div style={{ marginBottom: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', fontSize: 12, color: '#fbbf24' }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ Web Serial API no disponible</div>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ WebHID API no disponible</div>
                       <div style={{ color: 'rgba(251,191,36,0.8)', lineHeight: 1.5 }}>
-                        Tu navegador no soporta conexión USB a báscula. Usa <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong>.<br/>
-                        Si usas <strong>Brave</strong>: ve a <code style={{background:'rgba(0,0,0,0.3)',padding:'1px 4px',borderRadius:3}}>brave://flags/#enable-experimental-web-platform-features</code> y actívalo.
+                        Usa <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong> para conectar la báscula USB.
                       </div>
                     </div>
                   )}
@@ -479,8 +478,8 @@ function MainApp() {
                         value={scale.status === 'connected' ? scale.weight : manualWeight}
                         onChange={e => { if (scale.status !== 'connected') setManualWeight(e.target.value) }}
                         readOnly={scale.status === 'connected'}
-                        placeholder={scale.status === 'connected' ? 'Leyendo báscula...' : '0.000'}
-                        style={{ ...inputStyle, paddingLeft: 36, fontFamily: "'JetBrains Mono', monospace", ...(scale.status === 'connected' ? { borderColor: 'rgba(52,211,153,0.4)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' } : {}) }}
+                        placeholder={scale.status === 'connected' ? 'Leyendo báscula...' : '0.00'}
+                        style={{ ...inputStyle, paddingLeft: 36, paddingRight: scale.status === 'connected' ? 44 : 12, fontFamily: "'JetBrains Mono', monospace", ...(scale.status === 'connected' ? { borderColor: 'rgba(52,211,153,0.4)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' } : {}) }}
                       />
                     </div>
                     <button onClick={scale.status === 'connected' ? scale.readWeight : scale.connect} disabled={scale.status === 'connecting' || !scale.isSupported} title={scale.status === 'connected' ? 'Leer peso' : 'Conectar báscula USB'}
@@ -503,8 +502,11 @@ function MainApp() {
                   {scale.errorMsg && scale.errorMsg !== 'BRAVE_BLOQUEADO' && scale.errorMsg !== 'NAVEGADOR_NO_COMPATIBLE' && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f87171', marginTop: 4 }}><AlertCircle size={11} /> {scale.errorMsg}</div>
                   )}
+                  {scale.status === 'connected' && (
+                    <p style={{ fontSize: 11, color: '#34d399', marginTop: 4 }}>Báscula conectada — leyendo en libras (lb)</p>
+                  )}
                   {scale.status === 'disconnected' && !scale.errorMsg && scale.isSupported && (
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Presiona el ícono USB para conectar la báscula. Selecciona el baud rate de tu báscula (normalmente 9600).</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Presiona el ícono USB para conectar la báscula Mettler Toledo.</p>
                   )}
                 </Field>
 
