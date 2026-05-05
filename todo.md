@@ -32,3 +32,9 @@
 - [x] Validar que DESTINATION esté seleccionado antes de guardar
 - [x] Agregar columna DESTINATION en tabla del historial de envíos
 - [x] Actualizar modal de edición de envío con campo DESTINATION
+
+## Dropdown de Usuario y Selector de Tema
+- [ ] Dropdown al hacer clic en el área del usuario en el header
+- [ ] Opción "Editar Perfil": modal para cambiar nombre y contraseña
+- [ ] Selector de tema Dark/Light en el dropdown
+- [ ] Persistir preferencia de tema en localStorage

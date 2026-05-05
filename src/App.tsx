@@ -8,7 +8,8 @@ import UsersPage from './pages/Users'
 import {
   Package, Scale, Usb, RefreshCw, Send, Trash2, Edit2,
   ChevronDown, Wifi, WifiOff, Loader2, AlertCircle, ClipboardList,
-  Users, LogOut, Shield, Truck, X, Check, MapPin
+  Users, LogOut, Shield, Truck, X, Check, MapPin,
+  Sun, Moon, User, ChevronUp
 } from 'lucide-react'
 
 const BOX_TYPES = [
@@ -152,6 +153,78 @@ function EditShipmentModal({ shipment, onClose, onSaved }: { shipment: Shipment;
   )
 }
 
+// ─── Edit Profile Modal ───────────────────────────────────────────────────────
+function EditProfileModal({ onClose }: { onClose: () => void }) {
+  const { user } = useAuth()
+  const [fullName, setFullName] = useState(user?.full_name || '')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!fullName.trim()) { toast.error('El nombre no puede estar vacío'); return }
+    if (password && password !== confirmPassword) { toast.error('Las contraseñas no coinciden'); return }
+    if (password && password.length < 4) { toast.error('La contraseña debe tener al menos 4 caracteres'); return }
+    setSaving(true)
+    const updates: Record<string, string> = { full_name: fullName.trim() }
+    if (password) updates.password_text = password
+    const { error } = await supabase.from('app_users').update(updates).eq('id', user!.id)
+    if (error) { toast.error('Error al actualizar perfil'); setSaving(false); return }
+    // Update localStorage session
+    const saved = localStorage.getItem('shipping_session')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      parsed.full_name = fullName.trim()
+      if (password) parsed.password_text = password
+      localStorage.setItem('shipping_session', JSON.stringify(parsed))
+    }
+    toast.success('Perfil actualizado correctamente')
+    setSaving(false)
+    onClose()
+    setTimeout(() => window.location.reload(), 800)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 24 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{ width: '100%', maxWidth: 400, borderRadius: 16, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', padding: 28, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+          <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Editar Perfil</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div><label style={labelStyle}>NOMBRE COMPLETO</label>
+            <input value={fullName} onChange={e => setFullName(e.target.value)} style={inputStyle} placeholder="Tu nombre completo" />
+          </div>
+          <div><label style={labelStyle}>NUEVA CONTRASEÑA <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(dejar vacío para no cambiar)</span></label>
+            <div style={{ position: 'relative' }}>
+              <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                style={{ ...inputStyle, paddingRight: 44 }} placeholder="Nueva contraseña" />
+              <button type="button" onClick={() => setShowPass(v => !v)}
+                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 11 }}>
+                {showPass ? 'OCULTAR' : 'VER'}
+              </button>
+            </div>
+          </div>
+          {password && (
+            <div><label style={labelStyle}>CONFIRMAR CONTRASEÑA</label>
+              <input type={showPass ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                style={{ ...inputStyle, borderColor: confirmPassword && confirmPassword !== password ? '#f87171' : 'var(--border)' }} placeholder="Repetir contraseña" />
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button onClick={onClose} style={{ flex: 1, height: 42, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={handleSave} disabled={saving} style={{ flex: 2, height: 42, borderRadius: 8, border: 'none', background: saving ? 'rgba(99,102,241,0.5)' : '#6366f1', color: '#fff', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Check size={14} /> {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main App (authenticated) ─────────────────────────────────────────────────
 function MainApp() {
   const { user, logout, canDeleteShipments, canEditAllShipments } = useAuth()
@@ -166,6 +239,16 @@ function MainApp() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [loadingList, setLoadingList] = useState(true)
   const [editingShipment, setEditingShipment] = useState<Shipment | null>(null)
+
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('shipping_theme') as 'dark' | 'light') || 'dark')
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('shipping_theme', next)
+  }
 
   const scale = useScale()
   const effectiveWeight = scale.status === 'connected' ? scale.weight : manualWeight
@@ -229,11 +312,11 @@ function MainApp() {
   const roleColor = user ? ROLE_COLORS[user.role] : '#6366f1'
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
+    <div className={theme} style={{ minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
       <Toaster theme="dark" position="top-right" richColors />
 
       {/* Header */}
-      <header style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(17,17,24,0.95)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 50 }}>
+      <header style={{ borderBottom: '1px solid var(--border)', backgroundColor: theme === 'light' ? 'rgba(244,245,247,0.95)' : 'rgba(17,17,24,0.95)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
@@ -262,28 +345,68 @@ function MainApp() {
               <span style={{ display: 'none' }}>{scaleStatusLabel}</span>
             </div>
 
-            {/* User badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)' }}>
-              <div style={{ width: 28, height: 28, borderRadius: 7, background: `${roleColor}18`, border: `1px solid ${roleColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {user?.role === 'admin' ? <Shield size={13} color={roleColor} /> : user?.role === 'supervisor' ? <Users size={13} color={roleColor} /> : <Truck size={13} color={roleColor} />}
-              </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{user?.full_name}</div>
-                <div style={{ fontSize: 10, color: roleColor, fontWeight: 600 }}>{user ? ROLE_LABELS[user.role] : ''}</div>
-              </div>
-            </div>
-
             {/* Scale status dot */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: scaleStatusColor }}>
               {scale.status === 'connected' ? <Wifi size={13} /> : <WifiOff size={13} />}
             </div>
 
-            {/* Logout */}
-            <button onClick={logout} title="Cerrar sesión" style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#f87171'; (e.currentTarget as HTMLButtonElement).style.color = '#f87171' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}>
-              <LogOut size={15} />
-            </button>
+            {/* User dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setUserDropdownOpen(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: userDropdownOpen ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'all 0.15s' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: `${roleColor}18`, border: `1px solid ${roleColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {user?.role === 'admin' ? <Shield size={13} color={roleColor} /> : user?.role === 'supervisor' ? <Users size={13} color={roleColor} /> : <Truck size={13} color={roleColor} />}
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{user?.full_name}</div>
+                  <div style={{ fontSize: 10, color: roleColor, fontWeight: 600 }}>{user ? ROLE_LABELS[user.role] : ''}</div>
+                </div>
+                {userDropdownOpen ? <ChevronUp size={13} color="var(--text-muted)" /> : <ChevronDown size={13} color="var(--text-muted)" />}
+              </button>
+
+              {userDropdownOpen && (
+                <>
+                  {/* Backdrop to close */}
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={() => setUserDropdownOpen(false)} />
+                  <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 220, borderRadius: 12, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: '0 16px 40px rgba(0,0,0,0.4)', zIndex: 99, overflow: 'hidden' }}>
+                    {/* Profile info */}
+                    <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(99,102,241,0.04)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{user?.full_name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>@{user?.username}</div>
+                    </div>
+                    {/* Edit profile */}
+                    <button onClick={() => { setUserDropdownOpen(false); setShowEditProfile(true) }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13, textAlign: 'left', transition: 'background 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <User size={14} color="var(--text-muted)" /> Editar Perfil
+                    </button>
+                    {/* Theme toggle */}
+                    <button onClick={toggleTheme}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13, transition: 'background 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {theme === 'dark' ? <Sun size={14} color="var(--text-muted)" /> : <Moon size={14} color="var(--text-muted)" />}
+                        {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
+                      </div>
+                      <div style={{ width: 36, height: 20, borderRadius: 10, background: theme === 'light' ? '#6366f1' : 'var(--border)', position: 'relative', transition: 'background 0.2s' }}>
+                        <div style={{ position: 'absolute', top: 3, left: theme === 'light' ? 18 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                      </div>
+                    </button>
+                    {/* Divider */}
+                    <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                    {/* Logout */}
+                    <button onClick={() => { setUserDropdownOpen(false); logout() }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', fontSize: 13, textAlign: 'left', transition: 'background 0.15s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(248,113,113,0.06)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                      <LogOut size={14} /> Cerrar Sesión
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -465,6 +588,9 @@ function MainApp() {
         {/* ── USERS TAB ── */}
         {activeTab === 'users' && canManageUsers && <UsersPage />}
       </main>
+
+      {/* Edit Profile Modal */}
+      {showEditProfile && <EditProfileModal onClose={() => setShowEditProfile(false)} />}
 
       {/* Edit modal */}
       {editingShipment && (
