@@ -292,9 +292,9 @@ function MainApp() {
 
         {/* ── SHIPMENTS TAB ── */}
         {activeTab === 'shipments' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 32 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
             {/* Form */}
-            <div style={{ minWidth: 0 }}>
+            <div style={{ maxWidth: 520 }}>
               <div style={{ marginBottom: 18 }}>
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 20, color: 'var(--text)', marginBottom: 4 }}>Nuevo Envío</h2>
                 <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Complete los datos del paquete a registrar</p>
@@ -389,7 +389,7 @@ function MainApp() {
                   <RefreshCw size={13} /> Actualizar
                 </button>
               </div>
-              <div style={{ borderRadius: 14, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', overflow: 'hidden', maxHeight: 580, overflowY: 'auto' }}>
+              <div style={{ borderRadius: 14, border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', overflow: 'auto', maxHeight: 620 }}>
                 {loadingList ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 10, color: 'var(--text-muted)' }}>
                     <Loader2 size={18} className="spin" /> Cargando...
@@ -403,18 +403,20 @@ function MainApp() {
                     <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Los envíos guardados aparecerán aquí</p>
                   </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                        {['FECHA', 'USUARIO', 'DESTINO', 'SHIPMENT', 'CAJA', 'PESO', 'COMENTARIOS', ''].map(h => (
-                          <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
-                        ))}
+                        <>
+                          {[{h:'FECHA',w:130},{h:'USUARIO',w:120},{h:'DESTINO',w:130},{h:'SHIPMENT',w:110},{h:'CAJA',w:160},{h:'PESO',w:70},{h:'COMENTARIOS',w:200},{h:'',w:70}].map(({h,w}) => (
+                            <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap', width: w }}>{h}</th>
+                          ))}
+                        </>
                       </tr>
                     </thead>
                     <tbody>
                       {shipments.map((s, idx) => (
                         <tr key={s.id} style={{ borderBottom: '1px solid rgba(37,37,53,0.6)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                          <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace" }}>{formatDate(s.created_at)}</td>
+                          <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDate(s.created_at)}</td>
                           <td style={{ padding: '10px 12px' }}>
                             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{s.created_by_name || '—'}</span>
                           </td>
@@ -433,7 +435,7 @@ function MainApp() {
                           <td style={{ padding: '10px 12px' }}>
                             {s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(3)}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                           </td>
-                          <td style={{ padding: '10px 12px', maxWidth: 140 }}><span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.comments || '—'}</span></td>
+                          <td style={{ padding: '10px 12px' }}><span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', wordBreak: 'break-word', lineHeight: 1.5 }}>{s.comments || '—'}</span></td>
                           <td style={{ padding: '10px 12px' }}>
                             <div style={{ display: 'flex', gap: 4 }}>
                               {canEditShipment(s) && (
