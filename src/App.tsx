@@ -579,7 +579,7 @@ function MainApp() {
                             </div>
                           </td>
                           <td style={{ padding: '10px 12px' }}>
-                            {s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(3)}</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
+                            {s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(2)} lb</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ padding: '10px 12px' }}><span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', wordBreak: 'break-word', lineHeight: 1.5 }}>{s.comments || '—'}</span></td>
                           <td style={{ padding: '10px 12px' }}>
