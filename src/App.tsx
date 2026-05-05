@@ -239,6 +239,7 @@ function MainApp() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [loadingList, setLoadingList] = useState(true)
   const [editingShipment, setEditingShipment] = useState<Shipment | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ type: 'delete' | 'edit'; shipment: Shipment } | null>(null)
 
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
@@ -296,6 +297,16 @@ function MainApp() {
     const { error } = await supabase.from('shipments').delete().eq('id', s.id)
     if (error) toast.error('Error al eliminar', { description: error.message })
     else { toast.success('Registro eliminado'); fetchShipments() }
+  }
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return
+    if (confirmAction.type === 'delete') {
+      await handleDelete(confirmAction.shipment)
+    } else {
+      setEditingShipment(confirmAction.shipment)
+    }
+    setConfirmAction(null)
   }
 
   const canEditShipment = (s: Shipment) => {
@@ -585,13 +596,13 @@ function MainApp() {
                           <td style={{ padding: '10px 12px' }}>
                             <div style={{ display: 'flex', gap: 4 }}>
                               {canEditShipment(s) && (
-                                <button onClick={() => setEditingShipment(s)} title="Editar"
+                                <button onClick={() => setConfirmAction({ type: 'edit', shipment: s })} title="Editar"
                                   style={{ padding: 6, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                   <Edit2 size={12} />
                                 </button>
                               )}
                               {(canDeleteShipments || (!isShipping)) && canDeleteShipments && (
-                                <button onClick={() => handleDelete(s)} title="Eliminar"
+                                <button onClick={() => setConfirmAction({ type: 'delete', shipment: s })} title="Eliminar"
                                   style={{ padding: 6, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                   <Trash2 size={12} />
                                 </button>
@@ -614,6 +625,60 @@ function MainApp() {
 
       {/* Edit Profile Modal */}
       {showEditProfile && <EditProfileModal onClose={() => setShowEditProfile(false)} />}
+
+      {/* Confirm Delete / Edit Modal */}
+      {confirmAction && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+            {/* Icono y título */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: confirmAction.type === 'delete' ? 'rgba(248,113,113,0.12)' : 'rgba(251,191,36,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {confirmAction.type === 'delete'
+                  ? <Trash2 size={18} color="#f87171" />
+                  : <Edit2 size={18} color="#fbbf24" />}
+              </div>
+              <div>
+                <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 16, color: 'var(--text)', margin: 0 }}>
+                  {confirmAction.type === 'delete' ? '¿Eliminar registro?' : '¿Modificar registro?'}
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                  Esta acción será notificada al encargado de shipping
+                </p>
+              </div>
+            </div>
+
+            {/* Detalle del registro */}
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, lineHeight: 1.8 }}>
+              <div><span style={{ color: 'var(--text-muted)' }}>Envío:</span> <strong style={{ color: 'var(--text)', fontFamily: "'JetBrains Mono', monospace" }}>{confirmAction.shipment.shipment || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Destino:</span> <strong style={{ color: 'var(--text)' }}>{confirmAction.shipment.destination || '—'}</strong></div>
+              {confirmAction.shipment.weight != null && (
+                <div><span style={{ color: 'var(--text-muted)' }}>Peso:</span> <strong style={{ color: '#34d399', fontFamily: "'JetBrains Mono', monospace" }}>{Number(confirmAction.shipment.weight).toFixed(2)} lb</strong></div>
+              )}
+              <div><span style={{ color: 'var(--text-muted)' }}>Creado por:</span> <strong style={{ color: 'var(--text)' }}>{confirmAction.shipment.created_by_name || '—'}</strong></div>
+            </div>
+
+            {/* Aviso a encargados */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', borderRadius: 8, background: confirmAction.type === 'delete' ? 'rgba(248,113,113,0.07)' : 'rgba(251,191,36,0.07)', border: `1px solid ${confirmAction.type === 'delete' ? 'rgba(248,113,113,0.25)' : 'rgba(251,191,36,0.25)'}`, marginBottom: 20 }}>
+              <AlertCircle size={14} color={confirmAction.type === 'delete' ? '#f87171' : '#fbbf24'} style={{ marginTop: 1, flexShrink: 0 }} />
+              <p style={{ fontSize: 11, color: confirmAction.type === 'delete' ? '#f87171' : '#fbbf24', margin: 0, lineHeight: 1.5 }}>
+                Al confirmar, se notificará a los encargados de shipping: <strong>Marcos</strong> y <strong>Luis</strong>.
+              </p>
+            </div>
+
+            {/* Botones */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmAction(null)}
+                style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif" }}>
+                Cancelar
+              </button>
+              <button onClick={handleConfirmAction}
+                style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: confirmAction.type === 'delete' ? '#f87171' : '#fbbf24', color: confirmAction.type === 'delete' ? '#fff' : '#1a1a2e', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: "'Space Grotesk', sans-serif" }}>
+                {confirmAction.type === 'delete' ? 'Sí, eliminar' : 'Sí, modificar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit modal */}
       {editingShipment && (
