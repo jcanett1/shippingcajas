@@ -31,19 +31,10 @@ export interface UseScaleReturn {
   status: ScaleStatus
   weight: string
   errorMsg: string
-  connect: () => Promise<void> // Ya no necesitamos baudRate en HID
+  connect: () => Promise<void>
   disconnect: () => Promise<void>
   readWeight: () => void
   isSupported: boolean
-}
-
-function parsearRespuestaMettler(texto: string): string | null {
-  if (!texto) return null
-  // Extraer números y decimales
-  const limpio = texto.replace(/[^0-9.]/g, '').trim()
-  const numero = parseFloat(limpio)
-  if (isNaN(numero) || numero < 0) return null
-  return numero.toFixed(3)
 }
 
 export function useScale(): UseScaleReturn {
@@ -65,7 +56,7 @@ export function useScale(): UseScaleReturn {
       setStatus('connecting')
       setErrorMsg('')
 
-      // Filtramos por los IDs que arrojó tu consola
+      // Filtramos por los IDs exactos de la báscula BCA-222-60U-1101-110
       const devices = await navigator.hid.requestDevice({
         filters: [{ vendorId: 3768, productId: 61440 }]
       })
@@ -79,16 +70,34 @@ export function useScale(): UseScaleReturn {
       await device.open()
       deviceRef.current = device
 
-      // Configurar el listener de datos
+      // ─── Parser binario HID para básculas POS / Shipping Scale ──────────
+      // Protocolo estándar: Byte 4 (LSB) + Byte 5 (MSB), factor 0.01 para kg
       device.oninputreport = (event) => {
-        const { data } = event
-        const decoder = new TextDecoder()
-        // Decodificamos el buffer que llega de la báscula
-        const stringData = decoder.decode(data)
-        
-        const peso = parsearRespuestaMettler(stringData)
-        if (peso !== null) {
-          setWeight(peso)
+        // Verificar que el evento y la data existan
+        if (!event || !event.data) {
+          console.warn('Reporte recibido sin datos')
+          return
+        }
+
+        const { data } = event // DataView
+
+        try {
+          // Byte 4 = LSB (menos significativo), Byte 5 = MSB (más significativo)
+          const weightLSB = data.getUint8(4)
+          const weightMSB = data.getUint8(5)
+
+          // Valor crudo combinado
+          const rawWeight = weightLSB + (weightMSB * 256)
+
+          // Factor de escala: 0.01 para kg (ej: rawWeight=1050 → 10.50 kg)
+          const scaledWeight = (rawWeight * 0.01).toFixed(2)
+
+          console.log(`Peso capturado: ${scaledWeight} kg`)
+          setWeight(scaledWeight)
+          setStatus('connected')
+
+        } catch (error) {
+          console.error('Error al procesar los bytes de la báscula:', error)
         }
       }
 
@@ -96,11 +105,15 @@ export function useScale(): UseScaleReturn {
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
-      if (msg.toLowerCase().includes('cancel')) {
+      if (
+        msg.toLowerCase().includes('cancel') ||
+        msg.toLowerCase().includes('no device selected')
+      ) {
         setStatus('disconnected')
+        setErrorMsg('')
       } else {
         setStatus('error')
-        setErrorMsg('No se pudo conectar a la báscula HID.')
+        setErrorMsg('No se pudo conectar a la báscula. Revisa el cable USB.')
       }
     }
   }, [isSupported])
@@ -115,6 +128,7 @@ export function useScale(): UseScaleReturn {
     } catch { /* ignore */ }
     setStatus('disconnected')
     setWeight('')
+    setErrorMsg('')
   }, [])
 
   const readWeight = useCallback(() => {
