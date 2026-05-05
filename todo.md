@@ -34,7 +34,14 @@
 - [x] Actualizar modal de edición de envío con campo DESTINATION
 
 ## Dropdown de Usuario y Selector de Tema
-- [ ] Dropdown al hacer clic en el área del usuario en el header
-- [ ] Opción "Editar Perfil": modal para cambiar nombre y contraseña
-- [ ] Selector de tema Dark/Light en el dropdown
-- [ ] Persistir preferencia de tema en localStorage
+- [x] Dropdown al hacer clic en el área del usuario en el header
+- [x] Opción "Editar Perfil": modal para cambiar nombre y contraseña
+- [x] Selector de tema Dark/Light en el dropdown
+- [x] Persistir preferencia de tema en localStorage
+
+## Imágenes de Fondo en Login
+- [ ] Convertir 5 imágenes WebP a JPG optimizado
+- [ ] Subir imágenes a la carpeta public/images del repositorio
+- [ ] Carrusel automático de imágenes en el fondo del Login
+- [ ] Overlay oscuro semitransparente para legibilidad del formulario
+- [ ] Transición suave entre imágenes (fade)
