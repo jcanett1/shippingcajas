@@ -71,23 +71,35 @@ export function useScale(): UseScaleReturn {
       deviceRef.current = device
 
       // ─── Parser binario HID para báscula BCA-222-60U (Mettler Toledo) ───────────
-      // Protocolo confirmado: bytes[2]=LSB, bytes[3]=MSB, factor=0.01, unidad=lb
-      // Ejemplo: bytes=[4,12,254,5,0] → 254+(5×256)=1534 → 1534×0.01=15.34 lb
+      let lastBytesStr = ''
       device.oninputreport = (event) => {
         if (!event || !event.data) return
 
         const { data } = event
+        const n = data.byteLength
 
+        // Leer todos los bytes
+        const bytes: number[] = []
+        for (let i = 0; i < n; i++) bytes.push(data.getUint8(i))
+        const bytesStr = bytes.join(',')
+
+        // Solo loguear cuando los bytes cambian (evita spam)
+        if (bytesStr !== lastBytesStr) {
+          lastBytesStr = bytesStr
+          // Calcular todas las posibles lecturas de peso
+          const combos: string[] = []
+          for (let i = 0; i + 1 < n; i++) {
+            const raw = bytes[i] + (bytes[i+1] * 256)
+            combos.push(`b[${i}+${i+1}]=${(raw*0.01).toFixed(2)}lb`)
+          }
+          console.log(`[DIAG] bytes(${n}): [${bytesStr}] | ${combos.join(' | ')}`)
+        }
+
+        // Por ahora mostrar el peso usando bytes[2]+bytes[3] (ajustar según diagnóstico)
         try {
-          if (data.byteLength < 4) return
-
-          const weightLSB = data.getUint8(2)
-          const weightMSB = data.getUint8(3)
-          const rawWeight = weightLSB + (weightMSB * 256)
-
-          if (rawWeight >= 0) {
-            const scaledWeight = (rawWeight * 0.01).toFixed(2)
-            setWeight(scaledWeight)
+          if (n >= 4) {
+            const raw = bytes[2] + (bytes[3] * 256)
+            setWeight((raw * 0.01).toFixed(2))
           }
         } catch { /* ignore */ }
       }
