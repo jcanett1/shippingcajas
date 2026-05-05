@@ -11,7 +11,7 @@ interface SerialPort {
   getInfo(): SerialPortInfo
 }
 interface Serial {
-  requestPort(options?: object): Promise<SerialPort>
+  requestPort(options?: { filters?: object[] }): Promise<SerialPort>
   getPorts(): Promise<SerialPort[]>
 }
 declare global {
@@ -24,10 +24,14 @@ export interface UseScaleReturn {
   status: ScaleStatus
   weight: string
   errorMsg: string
-  connect: () => Promise<void>
+  connect: (baudRate?: number) => Promise<void>
   disconnect: () => Promise<void>
   readWeight: () => void
+  isSupported: boolean
 }
+
+// Baud rates comunes para básculas USB/serial
+export const COMMON_BAUD_RATES = [9600, 4800, 19200, 38400, 57600, 115200, 2400, 1200]
 
 export function useScale(): UseScaleReturn {
   const [status, setStatus] = useState<ScaleStatus>('disconnected')
@@ -37,17 +41,22 @@ export function useScale(): UseScaleReturn {
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   const bufferRef = useRef('')
 
-  const connect = useCallback(async () => {
-    if (!('serial' in navigator)) {
+  // Verificar soporte del navegador
+  const isSupported = 'serial' in navigator
+
+  const connect = useCallback(async (baudRate: number = 9600) => {
+    if (!isSupported) {
       setStatus('error')
-      setErrorMsg('Web Serial API no disponible. Usa Chrome o Edge.')
+      setErrorMsg('NAVEGADOR_NO_COMPATIBLE')
       return
     }
     try {
       setStatus('connecting')
       setErrorMsg('')
-      const port = await navigator.serial.requestPort()
-      await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' })
+
+      // Sin filtros para mostrar TODOS los dispositivos USB disponibles
+      const port = await navigator.serial.requestPort({ filters: [] })
+      await port.open({ baudRate, dataBits: 8, stopBits: 1, parity: 'none' })
       portRef.current = port
       setStatus('connected')
 
@@ -66,29 +75,46 @@ export function useScale(): UseScaleReturn {
             for (const line of lines) {
               const trimmed = line.trim()
               if (trimmed) {
-                const match = trimmed.match(/\d+\.?\d*/)
-                if (match) setWeight(match[0])
+                // Extraer número con decimales (ej: "22.500 kg", "0022.5", "ST,GS,+  22.500kg")
+                const match = trimmed.match(/[\d]+\.?[\d]*/)
+                if (match) {
+                  const val = parseFloat(match[0])
+                  if (!isNaN(val) && val >= 0) {
+                    setWeight(val.toFixed(3))
+                  }
+                }
               }
             }
           }
         } catch {
-          // port closed
+          // puerto cerrado normalmente
         } finally {
           reader.releaseLock()
+          setStatus('disconnected')
         }
       }
       readLoop()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
-      if (msg.includes('No port selected') || msg.includes('cancelled')) {
+      // Usuario canceló el diálogo
+      if (
+        msg.toLowerCase().includes('no port selected') ||
+        msg.toLowerCase().includes('cancelled') ||
+        msg.toLowerCase().includes('canceled') ||
+        msg.toLowerCase().includes('user cancelled') ||
+        msg.toLowerCase().includes('user canceled')
+      ) {
         setStatus('disconnected')
         setErrorMsg('')
+      } else if (msg.toLowerCase().includes('blocked') || msg.toLowerCase().includes('denied') || msg.toLowerCase().includes('permission')) {
+        setStatus('error')
+        setErrorMsg('BRAVE_BLOQUEADO')
       } else {
         setStatus('error')
         setErrorMsg(msg)
       }
     }
-  }, [])
+  }, [isSupported])
 
   const disconnect = useCallback(async () => {
     try {
@@ -101,8 +127,8 @@ export function useScale(): UseScaleReturn {
   }, [])
 
   const readWeight = useCallback(() => {
-    setWeight(w => w) // triggers re-render with latest value
+    setWeight(w => w)
   }, [])
 
-  return { status, weight, errorMsg, connect, disconnect, readWeight }
+  return { status, weight, errorMsg, connect, disconnect, readWeight, isSupported }
 }

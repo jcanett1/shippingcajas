@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, type Shipment, DESTINATIONS } from './lib/supabase'
-import { useScale } from './hooks/useScale'
+import { useScale, COMMON_BAUD_RATES } from './hooks/useScale'
 import { Toaster, toast } from 'sonner'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './pages/Login'
@@ -251,6 +251,7 @@ function MainApp() {
   }
 
   const scale = useScale()
+  const [baudRate, setBaudRate] = useState(9600)
   const effectiveWeight = scale.status === 'connected' ? scale.weight : manualWeight
 
   const isShipping = user?.role === 'shipping'
@@ -462,6 +463,16 @@ function MainApp() {
                 )}
 
                 <Field label="PESO">
+                  {/* Advertencia si el navegador no soporta Web Serial */}
+                  {!scale.isSupported && (
+                    <div style={{ marginBottom: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', fontSize: 12, color: '#fbbf24' }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ Web Serial API no disponible</div>
+                      <div style={{ color: 'rgba(251,191,36,0.8)', lineHeight: 1.5 }}>
+                        Tu navegador no soporta conexión USB a báscula. Usa <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong>.<br/>
+                        Si usas <strong>Brave</strong>: ve a <code style={{background:'rgba(0,0,0,0.3)',padding:'1px 4px',borderRadius:3}}>brave://flags/#enable-experimental-web-platform-features</code> y actívalo.
+                      </div>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <div style={{ position: 'relative', flex: 1 }}>
                       <Scale size={15} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -473,8 +484,16 @@ function MainApp() {
                         style={{ ...inputStyle, paddingLeft: 36, fontFamily: "'JetBrains Mono', monospace", ...(scale.status === 'connected' ? { borderColor: 'rgba(52,211,153,0.4)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' } : {}) }}
                       />
                     </div>
-                    <button onClick={scale.status === 'connected' ? scale.readWeight : scale.connect} disabled={scale.status === 'connecting'} title={scale.status === 'connected' ? 'Leer peso' : 'Conectar báscula USB'}
-                      style={{ ...iconBtnStyle, borderColor: scale.status === 'connected' ? 'rgba(52,211,153,0.4)' : 'var(--border)', color: scale.status === 'connected' ? '#34d399' : 'var(--text-muted)' }}>
+                    {/* Selector de baud rate */}
+                    {scale.status !== 'connected' && scale.isSupported && (
+                      <select value={baudRate} onChange={e => setBaudRate(Number(e.target.value))}
+                        title="Velocidad de comunicación (baud rate) de la báscula"
+                        style={{ ...inputStyle, width: 90, padding: '0 8px', fontSize: 11, fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer', flexShrink: 0 }}>
+                        {COMMON_BAUD_RATES.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    )}
+                    <button onClick={scale.status === 'connected' ? scale.readWeight : () => scale.connect(baudRate)} disabled={scale.status === 'connecting' || !scale.isSupported} title={scale.status === 'connected' ? 'Leer peso' : 'Conectar báscula USB'}
+                      style={{ ...iconBtnStyle, borderColor: scale.status === 'connected' ? 'rgba(52,211,153,0.4)' : 'var(--border)', color: scale.status === 'connected' ? '#34d399' : scale.isSupported ? 'var(--text-muted)' : 'rgba(107,107,138,0.4)', cursor: scale.isSupported ? 'pointer' : 'not-allowed' }}>
                       {scale.status === 'connecting' ? <Loader2 size={16} className="spin" /> : scale.status === 'connected' ? <RefreshCw size={16} /> : <Usb size={16} />}
                     </button>
                     {scale.status === 'connected' && (
@@ -483,8 +502,19 @@ function MainApp() {
                       </button>
                     )}
                   </div>
-                  {scale.errorMsg && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f87171', marginTop: 4 }}><AlertCircle size={11} /> {scale.errorMsg}</div>}
-                  {scale.status === 'disconnected' && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Presiona el ícono USB para conectar la báscula o ingresa el peso manualmente.</p>}
+                  {/* Mensajes de error específicos */}
+                  {scale.errorMsg === 'BRAVE_BLOQUEADO' && (
+                    <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 6, background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', fontSize: 11, color: '#f87171', lineHeight: 1.5 }}>
+                      <strong>Brave bloqueó el acceso al puerto serial.</strong><br/>
+                      Desactiva Brave Shields para este sitio: haz clic en el ícono del <strong>León</strong> en la barra de direcciones → desactiva los Shields.
+                    </div>
+                  )}
+                  {scale.errorMsg && scale.errorMsg !== 'BRAVE_BLOQUEADO' && scale.errorMsg !== 'NAVEGADOR_NO_COMPATIBLE' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#f87171', marginTop: 4 }}><AlertCircle size={11} /> {scale.errorMsg}</div>
+                  )}
+                  {scale.status === 'disconnected' && !scale.errorMsg && scale.isSupported && (
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Presiona el ícono USB para conectar la báscula. Selecciona el baud rate de tu báscula (normalmente 9600).</p>
+                  )}
                 </Field>
 
                 <Field label="COMENTARIOS">

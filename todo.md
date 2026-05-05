@@ -40,8 +40,8 @@
 - [x] Persistir preferencia de tema en localStorage
 
 ## Imágenes de Fondo en Login
-- [ ] Convertir 5 imágenes WebP a JPG optimizado
-- [ ] Subir imágenes a la carpeta public/images del repositorio
-- [ ] Carrusel automático de imágenes en el fondo del Login
-- [ ] Overlay oscuro semitransparente para legibilidad del formulario
-- [ ] Transición suave entre imágenes (fade)
+- [x] Convertir 5 imágenes WebP a JPG optimizado
+- [x] Subir imágenes a la carpeta public/images del repositorio
+- [x] Carrusel automático de imágenes en el fondo del Login
+- [x] Overlay oscuro semitransparente para legibilidad del formulario
+- [x] Transición suave entre imágenes (fade)
