@@ -651,9 +651,7 @@ function MainApp() {
                                     )}
                                   </div>
                                 ))}
-                                {s.boxes.length > 1 && (
-                                  <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{s.boxes.length} cajas • {s.boxes.reduce((sum: number, b: ShipmentBox) => sum + (b.weight || 0), 0).toFixed(2)} lb total</span>
-                                )}
+
                               </div>
                             ) : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -663,11 +661,10 @@ function MainApp() {
                             )}
                           </td>
                           <td style={{ padding: '10px 12px' }}>
-                            {/* Peso: si hay cajas nuevas mostrar total, sino legacy */}
                             {s.boxes && s.boxes.length > 0 ? (
-                              s.boxes.length === 1
-                                ? (s.boxes[0].weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.boxes[0].weight).toFixed(2)} lb</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>)
-                                : <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#34d399', fontWeight: 600 }}>{s.boxes.reduce((sum: number, b: ShipmentBox) => sum + (b.weight || 0), 0).toFixed(2)} lb</span>
+                              s.boxes[0].weight != null
+                                ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.boxes[0].weight).toFixed(2)} lb</span>
+                                : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
                             ) : (
                               s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(2)} lb</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
                             )}
