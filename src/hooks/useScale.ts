@@ -80,7 +80,7 @@ export function useScale(): UseScaleReturn {
         if (data.byteLength < 4) return
         try {
           const raw = data.getUint8(3)           // byte[3] contiene el peso
-          const weightLb = (raw * 0.05).toFixed(2) // factor 0.05 lb por unidad
+          const weightLb = (raw * 0.01).toFixed(2) // factor 0.01 lb por unidad (confirmado: 35×0.01=0.35lb)
           setWeight(weightLb)
         } catch { /* ignore */ }
       }
