@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, type Shipment, DESTINATIONS } from './lib/supabase'
-import { useScale, COMMON_BAUD_RATES } from './hooks/useScale'
-// COMMON_BAUD_RATES se usa en el selector de baud rate del campo PESO
+import { useScale } from './hooks/useScale'
 import { Toaster, toast } from 'sonner'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Login from './pages/Login'
@@ -252,7 +251,6 @@ function MainApp() {
   }
 
   const scale = useScale()
-  const [baudRate, setBaudRate] = useState(9600)
   const effectiveWeight = scale.status === 'connected' ? scale.weight : manualWeight
 
   const isShipping = user?.role === 'shipping'
@@ -485,15 +483,7 @@ function MainApp() {
                         style={{ ...inputStyle, paddingLeft: 36, fontFamily: "'JetBrains Mono', monospace", ...(scale.status === 'connected' ? { borderColor: 'rgba(52,211,153,0.4)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' } : {}) }}
                       />
                     </div>
-                    {/* Selector de baud rate */}
-                    {scale.status !== 'connected' && scale.isSupported && (
-                      <select value={baudRate} onChange={e => setBaudRate(Number(e.target.value))}
-                        title="Velocidad de comunicación (baud rate) de la báscula"
-                        style={{ ...inputStyle, width: 90, padding: '0 8px', fontSize: 11, fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer', flexShrink: 0 }}>
-                        {COMMON_BAUD_RATES.map((b: number) => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    )}
-                    <button onClick={scale.status === 'connected' ? scale.readWeight : () => (scale.connect as (br?: number) => Promise<void>)(baudRate)} disabled={scale.status === 'connecting' || !scale.isSupported} title={scale.status === 'connected' ? 'Leer peso' : 'Conectar báscula USB'}
+                    <button onClick={scale.status === 'connected' ? scale.readWeight : scale.connect} disabled={scale.status === 'connecting' || !scale.isSupported} title={scale.status === 'connected' ? 'Leer peso' : 'Conectar báscula USB'}
                       style={{ ...iconBtnStyle, borderColor: scale.status === 'connected' ? 'rgba(52,211,153,0.4)' : 'var(--border)', color: scale.status === 'connected' ? '#34d399' : scale.isSupported ? 'var(--text-muted)' : 'rgba(107,107,138,0.4)', cursor: scale.isSupported ? 'pointer' : 'not-allowed' }}>
                       {scale.status === 'connecting' ? <Loader2 size={16} className="spin" /> : scale.status === 'connected' ? <RefreshCw size={16} /> : <Usb size={16} />}
                     </button>
