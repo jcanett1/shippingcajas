@@ -71,16 +71,20 @@ export function useScale(): UseScaleReturn {
       deviceRef.current = device
 
       // ─── Parser binario HID para báscula BCA-222-60U (Mettler Toledo) ───────────
-      // Protocolo confirmado por diagnóstico:
-      //   byte[3] = valor crudo del peso, factor = 0.05 lb/unidad
-      //   Ejemplo: byte[3]=5 → 5×0.05=0.25 lb | byte[3]=120 → 120×0.05=6.00 lb
+      // Protocolo: byte[3] (LSB) + byte[4] (MSB) × 256 = valor crudo
+      //   valor crudo × 0.01 = peso en lb
+      //   Ejemplos: 0.35 lb → raw=35 (byte3=35, byte4=0)
+      //             4.85 lb → raw=485 (byte3=229, byte4=1)
+      //            15.00 lb → raw=1500 (byte3=220, byte4=5)
       device.oninputreport = (event) => {
         if (!event || !event.data) return
         const { data } = event
         if (data.byteLength < 4) return
         try {
-          const raw = data.getUint8(3)           // byte[3] contiene el peso
-          const weightLb = (raw * 0.01).toFixed(2) // factor 0.01 lb por unidad (confirmado: 35×0.01=0.35lb)
+          const lsb = data.getUint8(3)
+          const msb = data.byteLength > 4 ? data.getUint8(4) : 0
+          const raw = lsb + msb * 256
+          const weightLb = (raw * 0.01).toFixed(2)
           setWeight(weightLb)
         } catch { /* ignore */ }
       }
