@@ -662,11 +662,17 @@ function MainApp() {
                           </td>
                           <td style={{ padding: '10px 12px' }}>
                             {s.boxes && s.boxes.length > 0 ? (
-                              s.boxes[0].weight != null
-                                ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.boxes[0].weight).toFixed(2)} lb</span>
-                                : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {s.boxes.sort((a: ShipmentBox, b: ShipmentBox) => a.sort_order - b.sort_order).map((box: ShipmentBox) => (
+                                  <span key={box.id} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                    {box.weight != null ? `${Number(box.weight).toFixed(2)} lb` : '—'}
+                                  </span>
+                                ))}
+                              </div>
                             ) : (
-                              s.weight != null ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(2)} lb</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                              s.weight != null
+                                ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#34d399', fontWeight: 600 }}>{Number(s.weight).toFixed(2)} lb</span>
+                                : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
                             )}
                           </td>
                           <td style={{ padding: '10px 12px' }}><span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', wordBreak: 'break-word', lineHeight: 1.5 }}>{s.comments || '—'}</span></td>
