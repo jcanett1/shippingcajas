@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 
 const BOX_TYPES = [
-  '14 CLUN BOX',
+  '14 CLUB BOX',
   '24 DOZEN GOLF BALL BOX',
   '6 DOZEN GOLF BALL BOX',
   'BUCKET HAT BOX',
