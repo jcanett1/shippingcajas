@@ -45,3 +45,10 @@
 - [x] Carrusel automático de imágenes en el fondo del Login
 - [x] Overlay oscuro semitransparente para legibilidad del formulario
 - [x] Transición suave entre imágenes (fade)
+
+## Función "Revisado" en Historial de Envíos
+
+- [ ] Agregar campo `reviewed` (boolean) a la tabla `shipments` en Supabase
+- [ ] Actualizar tipo Shipment en supabase.ts con campo `reviewed`
+- [ ] Agregar botón "Revisado" en acciones del historial, visible solo para admin/supervisor
+- [ ] Al marcar revisado, la fila del historial se resalta en verde

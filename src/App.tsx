@@ -9,7 +9,7 @@ import {
   Package, Scale, Usb, RefreshCw, Send, Trash2, Edit2,
   ChevronDown, Wifi, WifiOff, Loader2, AlertCircle, ClipboardList,
   Users, LogOut, Shield, Truck, X, Check, MapPin,
-  Sun, Moon, User, ChevronUp, Plus, Minus
+  Sun, Moon, User, ChevronUp, Plus, Minus, CheckCircle2, RotateCcw
 } from 'lucide-react'
 
 const BOX_TYPES = [
@@ -335,6 +335,21 @@ function MainApp() {
     setConfirmAction(null)
   }
 
+  const handleReview = async (s: Shipment) => {
+    if (!canManageUsers) { toast.error('Solo supervisores y admins pueden marcar como revisado'); return }
+    const nowReviewed = !s.reviewed
+    const { error } = await supabase.from('shipments').update({
+      reviewed: nowReviewed,
+      reviewed_by: nowReviewed ? user?.full_name : null,
+      reviewed_at: nowReviewed ? new Date().toISOString() : null,
+    }).eq('id', s.id)
+    if (error) toast.error('Error al actualizar', { description: error.message })
+    else {
+      toast.success(nowReviewed ? '\u2705 Marcado como revisado' : 'Marcado como pendiente')
+      fetchShipments()
+    }
+  }
+
   const canEditShipment = (s: Shipment) => {
     if (canEditAllShipments) return true
     // shipping can only edit their own
@@ -616,7 +631,7 @@ function MainApp() {
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
                         <>
-                          {[{h:'FECHA',w:130},{h:'USUARIO',w:120},{h:'DESTINO',w:130},{h:'SHIPMENT',w:110},{h:'CAJA',w:160},{h:'PESO',w:70},{h:'COMENTARIOS',w:200},{h:'',w:70}].map(({h,w}) => (
+                          {[{h:'FECHA',w:130},{h:'USUARIO',w:120},{h:'DESTINO',w:130},{h:'SHIPMENT',w:110},{h:'CAJA',w:160},{h:'PESO',w:70},{h:'COMENTARIOS',w:200},{h:'',w:100}].map(({h,w}) => (
                             <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', whiteSpace: 'nowrap', width: w }}>{h}</th>
                           ))}
                         </>
@@ -624,7 +639,7 @@ function MainApp() {
                     </thead>
                     <tbody>
                       {shipments.map((s, idx) => (
-                        <tr key={s.id} style={{ borderBottom: '1px solid rgba(37,37,53,0.6)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                        <tr key={s.id} style={{ borderBottom: '1px solid rgba(37,37,53,0.6)', backgroundColor: s.reviewed ? 'rgba(52,211,153,0.07)' : idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)', transition: 'background-color 0.3s' }}>
                           <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDate(s.created_at)}</td>
                           <td style={{ padding: '10px 12px' }}>
                             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{s.created_by_name || '—'}</span>
@@ -688,6 +703,14 @@ function MainApp() {
                                 <button onClick={() => setConfirmAction({ type: 'delete', shipment: s })} title="Eliminar"
                                   style={{ padding: 6, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                   <Trash2 size={12} />
+                                </button>
+                              )}
+                              {canManageUsers && (
+                                <button
+                                  onClick={() => handleReview(s)}
+                                  title={s.reviewed ? `Revisado por ${s.reviewed_by || 'supervisor'} — clic para desmarcar` : 'Marcar como revisado'}
+                                  style={{ padding: 6, borderRadius: 6, border: 'none', background: s.reviewed ? 'rgba(52,211,153,0.15)' : 'transparent', color: s.reviewed ? '#34d399' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}>
+                                  {s.reviewed ? <CheckCircle2 size={13} /> : <RotateCcw size={12} />}
                                 </button>
                               )}
                             </div>

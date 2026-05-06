@@ -28,6 +28,9 @@ export type Shipment = {
   created_by: number | null
   created_by_name: string | null
   boxes?: ShipmentBox[]      // cajas adicionales (nueva tabla)
+  reviewed?: boolean          // marcado como revisado por supervisor/admin
+  reviewed_by?: string | null // nombre del usuario que revisó
+  reviewed_at?: string | null // fecha de revisión
 }
 
 export const DESTINATIONS = [
